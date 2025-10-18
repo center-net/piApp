@@ -1,54 +1,116 @@
 <!doctype html>
 <html>
+
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Login with Pi</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Login with Pi</title>
 </head>
+
 <body>
-  <h2>Login with Pi</h2>
-  <button id="btnLogin">Login with Pi</button>
+    <h2>Login with Pi</h2>
+    <button id="btnLogin" disabled>جاري التهيئة...</button>
+    <div id="status" style="margin-top: 10px;"></div>
 
-  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-  <script>
-    // مثال عام، عدّل حسب توثيق Pi SDK الفعلي
-    async function piLogin(){
-      try {
-        // scopes حسب توثيق Pi
-        const scopes = ['username', 'payments'];
-        const auth = await Pi.authenticate(scopes);
-        // auth قد يحتوي على accessToken, username, publicKey
-        const payload = {
-          accessToken: auth.accessToken || auth.token || '',
-          username: auth.username || '',
-          publicKey: auth.publicKey || auth.pubKey || ''
-        };
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <script>
+        // تهيئة Pi SDK قبل أي استخدام آخر
+        let piInitialized = false;
 
-        // إرسال إلى Laravel API
-        const res = await fetch('/api/pi/auth', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify(payload)
-        });
+        async function initPiSDK() {
+            try {
+                // تهيئة Pi SDK
+                await Pi.init({
+                    version: '2.0', // استخدام أحدث نسخة متاحة
+                    sandbox: true, // أو false للإنتاج
+                });
 
-        const data = await res.json();
-        if(res.ok){
-          // إذا تعمل داخل WebView: نرسل رسالة إلى Flutter أو نجري redirect بخيار token
-          // طريقتان: 1) window.flutter_inappwebview.postMessage  2) redirect with token in URL hash
-          // سنستخدم تغيير window.location إلى custom-scheme مع token
-          const token = data.token;
-          // طريقة آمنة: نعيد التوكن في عنوان URL (hash)
-          window.location.href = 'https://callback.local/#token=' + token;
-        } else {
-          alert('Auth failed: ' + JSON.stringify(data));
+                piInitialized = true;
+                document.getElementById('btnLogin').disabled = false;
+                document.getElementById('btnLogin').textContent = 'Login with Pi';
+                document.getElementById('status').textContent = 'Pi SDK تم تهيئته بنجاح';
+            } catch (e) {
+                console.error('فشل تهيئة Pi SDK:', e);
+                document.getElementById('status').textContent = 'فشل تهيئة Pi SDK: ' + e.message;
+            }
         }
-      } catch(e){
-        console.error(e);
-        alert('Error: ' + e.message);
-      }
-    }
 
-    document.getElementById('btnLogin').addEventListener('click', piLogin);
-  </script>
+        // تهيئة Pi SDK عند تحميل الصفحة
+        window.addEventListener('load', initPiSDK);
+
+        // مثال عام، عدّل حسب توثيق Pi SDK الفعلي
+        async function piLogin() {
+            if (!piInitialized) {
+                alert('Pi SDK لم يتم تهيئته بعد');
+                return;
+            }
+
+            try {
+                document.getElementById('status').textContent = 'جاري محاولة تسجيل الدخول...';
+                document.getElementById('btnLogin').disabled = true;
+
+                // scopes حسب توثيق Pi
+                const scopes = ['username', 'payments'];
+                // تهيئة أولية
+                Pi.init({
+                    sandbox: true,
+                    appId: 'YOUR_APP_ID'
+                });
+
+                async function piLogin() {
+                    try {
+                        const scopes = ['username', 'payments'];
+                        const auth = await Pi.authenticate(scopes);
+                        console.log(auth); // تحقق من الحقول
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+
+                document.getElementById('btnLogin').addEventListener('click', piLogin);
+
+                // auth قد يحتوي على accessToken, username, publicKey
+                const payload = {
+                    accessToken: auth.accessToken || auth.token || '',
+                    username: auth.username || '',
+                    publicKey: auth.publicKey || auth.pubKey || ''
+                };
+
+                document.getElementById('status').textContent = 'جاري إرسال البيانات إلى الخادم...';
+
+                // إرسال إلى Laravel API
+                const res = await fetch('/api/pi/auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    // إذا تعمل داخل WebView: نرسل رسالة إلى Flutter أو نجري redirect بخيار token
+                    // طريقتان: 1) window.flutter_inappwebview.postMessage  2) redirect with token in URL hash
+                    // سنستخدم تغيير window.location إلى custom-scheme مع token
+                    const token = data.token;
+                    document.getElementById('status').textContent = 'تم تسجيل الدخول بنجاح! جاري التوجيه...';
+                    // طريقة آمنة: نعيد التوكن في عنوان URL (hash)
+                    window.location.href = 'https://callback.local/#token=' + token;
+                } else {
+                    document.getElementById('status').textContent = 'فشل المصادقة';
+                    alert('Auth failed: ' + JSON.stringify(data));
+                    document.getElementById('btnLogin').disabled = false;
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('status').textContent = 'حدث خطأ: ' + e.message;
+                alert('Error: ' + e.message);
+                document.getElementById('btnLogin').disabled = false;
+            }
+        }
+
+        document.getElementById('btnLogin').addEventListener('click', piLogin);
+    </script>
 </body>
+
 </html>

@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:frontend/services/pi_auth_service.dart';
+import 'package:frontend/routes/app_routes.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +21,7 @@ class MyApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (context) => PiAuthService(),
       child: MaterialApp(
-        title: 'Pi Flutter WebView',
+        title: 'تطبيق Pi',
         theme: ThemeData(
           primarySwatch: Colors.blue,
           visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -31,7 +32,12 @@ class MyApp extends StatelessWidget {
             bodyText2: TextStyle(fontSize: 14.0),
           ),
         ),
-        home: const PiLoginScreen(),
+        initialRoute: AppRoutes.login,
+        routes: {
+          AppRoutes.login: (context) => const LoginScreen(),
+          AppRoutes.home: (context) => const HomeScreen(),
+        },
+        onUnknownRoute: AppRoutes.generateRoute,
       ),
     );
   }
@@ -50,29 +56,51 @@ class _PiLoginScreenState extends State<PiLoginScreen> {
 
   // رابط صفحة المصادقة في Laravel
   final String loginUrl = 'https://piapp-main-4xd19j.laravel.cloud/pi/auth';
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkExistingSession();
+  }
+
+  Future<void> _checkExistingSession() async {
+    final piAuthService = Provider.of<PiAuthService>(context, listen: false);
+    final isLoggedIn = await piAuthService.isLoggedIn();
+
+    if (isLoggedIn && mounted) {
+      Navigator.pushReplacementNamed(context, AppRoutes.home);
+    } else {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login with Pi')),
-      body: WebView(
-        initialUrl: loginUrl,
-        javascriptMode: JavascriptMode.unrestricted,
-        onWebViewCreated: (ctrl) => _controller.complete(ctrl),
-        navigationDelegate: (navRequest) {
-          final uri = Uri.parse(navRequest.url);
-          // نتحقق من وجود token في fragment (بعد #)
-          if (uri.scheme == 'https' && uri.host == 'callback.local') {
-            final fragment = uri.fragment; // e.g. token=...
-            if (fragment.startsWith('token=')) {
-              final token = fragment.split('token=')[1];
-              _onTokenReceived(token);
-            }
-            return NavigationDecision.prevent;
-          }
-          return NavigationDecision.navigate;
-        },
-      ),
+      appBar: AppBar(title: const Text('تسجيل الدخول مع Pi')),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : WebView(
+              initialUrl: loginUrl,
+              javascriptMode: JavascriptMode.unrestricted,
+              onWebViewCreated: (ctrl) => _controller.complete(ctrl),
+              navigationDelegate: (navRequest) {
+                final uri = Uri.parse(navRequest.url);
+                // نتحقق من وجود token في fragment (بعد #)
+                if (uri.scheme == 'https' && uri.host == 'callback.local') {
+                  final fragment = uri.fragment; // e.g. token=...
+                  if (fragment.startsWith('token=')) {
+                    final token = fragment.split('token=')[1];
+                    _onTokenReceived(token);
+                  }
+                  return NavigationDecision.prevent;
+                }
+                return NavigationDecision.navigate;
+              },
+            ),
     );
   }
 
@@ -88,60 +116,22 @@ class _PiLoginScreenState extends State<PiLoginScreen> {
 
     if (res.statusCode == 200) {
       final user = json.decode(res.body);
-      // انتقل لصفحة رئيسية أو أظهر المستخدم
+      // انتقل لصفحة رئيسية
       if (!mounted) return;
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomePage(user: user)));
+      Navigator.pushReplacementNamed(context, AppRoutes.home);
     } else {
       // فشل: أظهر رسالة خطأ
       if (!mounted) return;
-      showDialog(context: context, builder: (_) => AlertDialog(title: const Text('Auth failed'), content: Text(res.body)));
-    }
-  }
-}
-
-class HomePage extends StatelessWidget {
-  final Map<String, dynamic> user;
-  const HomePage({super.key, required this.user});
-
-  @override
-  Widget build(BuildContext context) {
-    final piAuthService = Provider.of<PiAuthService>(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
+      showDialog(context: context, builder: (_) => AlertDialog(
+        title: const Text('فشل المصادقة'),
+        content: Text(res.body),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await piAuthService.clearToken();
-              if (!mounted) return;
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PiLoginScreen()));
-            },
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('موافق'),
           ),
         ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Welcome, ${user['pi_username'] ?? user['email'] ?? 'Pioneer'}',
-              style: const TextStyle(fontSize: 24),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Email: ${user['email'] ?? 'N/A'}',
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Username: ${user['pi_username'] ?? 'N/A'}',
-              style: const TextStyle(fontSize: 16),
-            ),
-          ],
-        ),
-      ),
-    );
+      ));
+    }
   }
 }
