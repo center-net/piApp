@@ -24,7 +24,7 @@ class PiAuthController extends Controller
             $data = $request->validate([
                 'accessToken' => 'required|string|min:10',
                 'username' => 'nullable|string|max:255',
-                'publicKey' => 'nullable|string|max:500',
+                'uid' => 'nullable|string|max:255',
             ]);
 
             Log::info('Pi authentication attempt', [
@@ -46,22 +46,34 @@ class PiAuthController extends Controller
                 ], 401);
             }
 
-            // استخراج بيانات المستخدم
+            // استخراج بيانات المستخدم من Pi API response
             $piUser = $piResponse['user'] ?? [];
-            $username = $data['username'] ?? ($piUser['username'] ?? 'pi_user_' . Str::random(8));
-            $publicKey = $data['publicKey'] ?? ($piUser['publicKey'] ?? null);
+            $username = $piUser['username'] ?? $data['username'] ?? 'pi_user_' . Str::random(8);
+            $uid = $piUser['uid'] ?? $data['uid'] ?? null;
 
-            if (!$publicKey) {
-                throw new \Exception('Public key مفقود');
+            // استخراج public key من Pi API response
+            $publicKey = $piUser['public_key'] ?? $piUser['publicKey'] ?? $piUser['pubKey'] ?? null;
+
+            if (!$uid) {
+                throw new \Exception('UID مفقود من Pi');
             }
 
-            // البحث عن المستخدم أو إنشاء مستخدم جديد
+            // يمكن أن لا يكون public key موجود دائماً، لكن UID ضروري
+            Log::debug('Pi user data extracted', [
+                'uid' => $uid,
+                'username' => $username,
+                'has_public_key' => !empty($publicKey)
+            ]);
+
+            // البحث عن المستخدم أو إنشاء مستخدم جديد باستخدام Pi uid
             $user = User::firstOrCreate(
-                ['public_key' => $publicKey],
+                ['pi_id' => $uid], // استخدام Pi uid كـ unique identifier
                 [
                     'name' => $username,
                     'pi_username' => $username,
+                    'public_key' => $publicKey,
                     'email' => $piUser['email'] ?? null,
+                    'pi_access_token' => $data['accessToken'],
                     'meta' => $piUser
                 ]
             );
@@ -69,6 +81,8 @@ class PiAuthController extends Controller
             // تحديث بيانات المستخدم
             $user->update([
                 'pi_username' => $username,
+                'pi_access_token' => $data['accessToken'],
+                'public_key' => $publicKey,
                 'meta' => array_merge($user->meta ?? [], $piUser),
                 'last_login_at' => now()
             ]);

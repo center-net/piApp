@@ -292,12 +292,13 @@
 
                 piAuth = await Promise.race([authPromise, timeoutPromise]);
                 addDebugMessage(`✅ تمت المصادقة بنجاح!`);
-                addDebugMessage(`📊 البيانات المستقبلة: accessToken=${piAuth.accessToken ? '✓' : '✗'}, username=${piAuth.username || 'بدون'}, publicKey=${piAuth.publicKey ? '✓' : '✗'}`);
+                addDebugMessage(`📊 البيانات المستقبلة: accessToken=${piAuth.accessToken ? '✓' : '✗'}, uid=${piAuth.user?.uid || 'بدون'}, username=${piAuth.user?.username || 'بدون'}`);
 
+                // استخراج البيانات من الـ response الصحيح
                 const payload = {
-                    accessToken: piAuth.accessToken || piAuth.token || '',
-                    username: piAuth.username || '',
-                    publicKey: piAuth.publicKey || piAuth.pubKey || ''
+                    accessToken: piAuth.accessToken || '',
+                    username: piAuth.user?.username || '',
+                    uid: piAuth.user?.uid || ''
                 };
 
                 if (!payload.accessToken) {

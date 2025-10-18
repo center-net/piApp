@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\PiAuthController;
+use App\Http\Controllers\PiAuthController as WebPiAuthController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -35,11 +35,11 @@ Route::view('/pi-login', 'pi_auth')
 
 // ===== مسارات OAuth2 مع Pi =====
 Route::middleware('guest')->group(function () {
-    Route::get('/pi/redirect', [PiAuthController::class, 'redirectToPi'])
+    Route::get('/pi/redirect', [WebPiAuthController::class, 'redirectToPi'])
         ->name('pi.redirect');
 });
 
-Route::get('/pi/callback', [PiAuthController::class, 'handlePiCallback'])
+Route::get('/pi/callback', [WebPiAuthController::class, 'handlePiCallback'])
     ->name('pi.callback');
 
 // ===== تسجيل الخروج =====

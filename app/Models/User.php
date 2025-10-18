@@ -152,10 +152,8 @@ class User extends Authenticatable
         parent::boot();
 
         static::creating(function ($user) {
-            // إنشاء معرف فريد إذا لم يكن موجود
-            if (!$user->pi_id) {
-                $user->pi_id = 'pi_' . \Illuminate\Support\Str::random(16);
-            }
+            // لا ننشئ pi_id تلقائياً - يجب أن يأتي من Pi API
+            // pi_id يتم التعيين له من uid الذي يرجعه Pi
         });
 
         static::updated(function ($user) {
