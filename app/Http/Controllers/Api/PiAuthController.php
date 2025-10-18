@@ -136,8 +136,14 @@ class PiAuthController extends Controller
     private function verifyWithPiAPI(string $token): array
     {
         try {
-            $endpoint = env('PI_VERIFY_ENDPOINT', 'https://api.minepi.com/v1/user');
+            $endpoint = env('PI_VERIFY_ENDPOINT', 'https://api.minepi.com/v2/me');
             $apiKey = env('PI_API_KEY');
+
+            Log::debug('Pi API verification start', [
+                'endpoint' => $endpoint,
+                'token_length' => strlen($token),
+                'has_api_key' => !empty($apiKey)
+            ]);
 
             if (!$apiKey) {
                 Log::warning('PI_API_KEY is not configured');
@@ -149,23 +155,33 @@ class PiAuthController extends Controller
                 'Accept' => 'application/json'
             ])->timeout(10)->get($endpoint);
 
+            Log::debug('Pi API response received', [
+                'status' => $response->status(),
+                'is_successful' => $response->successful()
+            ]);
+
             if ($response->successful()) {
+                $responseData = $response->json();
+                Log::debug('Pi API user data', $responseData);
+
                 return [
                     'valid' => true,
-                    'user' => $response->json()
+                    'user' => $responseData
                 ];
             }
 
             Log::warning('Pi API verification failed', [
                 'status' => $response->status(),
-                'body' => $response->body()
+                'body' => $response->body(),
+                'token_preview' => substr($token, 0, 10) . '...'
             ]);
 
             return ['valid' => false];
 
         } catch (\Exception $e) {
             Log::error('Pi API verification error', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'exception' => get_class($e)
             ]);
 
             return ['valid' => false];
