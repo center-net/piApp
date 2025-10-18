@@ -162,6 +162,14 @@
         let isProcessing = false;
         const MAX_DEBUG_MESSAGES = 50;
 
+        // التحقق من توفر Pi SDK
+        window.addEventListener('error', function(event) {
+            if (event.filename && event.filename.includes('pi-sdk')) {
+                addDebugMessage(`❌ فشل تحميل Pi SDK من CDN: ${event.message}`);
+                setStatus('❌ فشل تحميل Pi SDK - تحقق من الاتصال بالإنترنت', 'error');
+            }
+        });
+
         // ===== الدوال المساعدة =====
         function addDebugMessage(message) {
             const debugDiv = document.getElementById('debug');
@@ -273,8 +281,18 @@
                 const scopes = ['username', 'payments'];
                 addDebugMessage(`📋 النطاقات المطلوبة: ${scopes.join(', ')}`);
 
-                piAuth = await Pi.authenticate(scopes);
-                addDebugMessage(`✅ تمت المصادقة: ${JSON.stringify(piAuth)}`);
+                // إنشء timeout للمصادقة (دقيقة واحدة)
+                addDebugMessage('⏳ في انتظار نافذة تسجيل الدخول من Pi SDK...');
+                setStatus('⏳ يرجى التوافق مع طلب المصادقة', 'loading');
+
+                const authPromise = Pi.authenticate(scopes);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('انتهت مهلة المصادقة - لم تستجب خادم Pi')), 60000)
+                );
+
+                piAuth = await Promise.race([authPromise, timeoutPromise]);
+                addDebugMessage(`✅ تمت المصادقة بنجاح!`);
+                addDebugMessage(`📊 البيانات المستقبلة: accessToken=${piAuth.accessToken ? '✓' : '✗'}, username=${piAuth.username || 'بدون'}, publicKey=${piAuth.publicKey ? '✓' : '✗'}`);
 
                 const payload = {
                     accessToken: piAuth.accessToken || piAuth.token || '',
@@ -321,10 +339,23 @@
                 }, 500);
 
             } catch (error) {
-                console.error('❌ خطأ:', error);
+                console.error('❌ خطأ كامل:', error);
                 const errorMessage = error.message || String(error);
-                setStatus(`❌ خطأ: ${errorMessage}`, 'error');
-                addDebugMessage(`❌ خطأ في العملية: ${errorMessage}`);
+
+                // رسائل مخصصة حسب نوع الخطأ
+                let displayMessage = errorMessage;
+
+                if (errorMessage.includes('انتهت مهلة')) {
+                    displayMessage = '⏱️ انتهت مهلة المصادقة - لم يرد Pi SDK في الوقت المحدد';
+                } else if (errorMessage.includes('Pi SDK غير متاح')) {
+                    displayMessage = '❌ Pi SDK غير متاح - تحقق من الاتصال بالإنترنت أو حاول لاحقاً';
+                } else if (errorMessage.includes('لم يتم الحصول على access token')) {
+                    displayMessage = '⚠️ لم يتم الحصول على access token - قد تكون الموافقة تم رفضها';
+                }
+
+                setStatus(`❌ خطأ: ${displayMessage}`, 'error');
+                addDebugMessage(`❌ خطأ في العملية: ${displayMessage}`);
+                addDebugMessage(`📍 التفاصيل: ${errorMessage}`);
 
                 document.getElementById('btnLogin').disabled = false;
                 isProcessing = false;
