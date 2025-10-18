@@ -16,6 +16,7 @@
     <script>
         // تهيئة Pi SDK قبل أي استخدام آخر
         let piInitialized = false;
+        let piAuth = null; // تعريف متغير auth بشكل صريح
 
         async function initPiSDK() {
             try {
@@ -51,29 +52,14 @@
 
                 // scopes حسب توثيق Pi
                 const scopes = ['username', 'payments'];
-                // تهيئة أولية
-                Pi.init({
-                    sandbox: true,
-                    appId: 'YOUR_APP_ID'
-                });
+                piAuth = await Pi.authenticate(scopes);
+                console.log(piAuth); // تحقق من الحقول
 
-                async function piLogin() {
-                    try {
-                        const scopes = ['username', 'payments'];
-                        const auth = await Pi.authenticate(scopes);
-                        console.log(auth); // تحقق من الحقول
-                    } catch (e) {
-                        console.error(e);
-                    }
-                }
-
-                document.getElementById('btnLogin').addEventListener('click', piLogin);
-
-                // auth قد يحتوي على accessToken, username, publicKey
+                // piAuth قد يحتوي على accessToken, username, publicKey
                 const payload = {
-                    accessToken: auth.accessToken || auth.token || '',
-                    username: auth.username || '',
-                    publicKey: auth.publicKey || auth.pubKey || ''
+                    accessToken: piAuth.accessToken || piAuth.token || '',
+                    username: piAuth.username || '',
+                    publicKey: piAuth.publicKey || piAuth.pubKey || ''
                 };
 
                 document.getElementById('status').textContent = 'جاري إرسال البيانات إلى الخادم...';
