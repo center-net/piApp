@@ -20,6 +20,13 @@ class PiAuthController extends Controller
     public function authenticate(Request $request)
     {
         try {
+            // ログすぐに確認するための診断ログ
+            Log::channel('single')->info('=== PI AUTH ENDPOINT CALLED ===', [
+                'method' => $request->method(),
+                'url' => $request->fullUrl(),
+                'has_body' => $request->getContent() !== '',
+            ]);
+
             // التحقق من البيانات المدخلة
             $data = $request->validate([
                 'accessToken' => 'required|string|min:10',
