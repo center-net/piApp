@@ -65,7 +65,7 @@
                     <div class="card-body">
                         <h3 class="card-title">ابدأ الآن</h3>
                         <p class="card-text">سجل الدخول باستخدام حسابك على Pi للبدء في استخدام التطبيق.</p>
-                        <a href="{{ route('login') }}" class="btn btn-primary">تسجيل الدخول</a>
+                        <a href="{{ route('pi.login') }}" class="btn btn-primary">تسجيل الدخول</a>
                     </div>
                 </div>
             </div>
