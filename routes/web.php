@@ -30,6 +30,9 @@ Route::get('/dashboard', function () {
 Route::get('/pi/redirect', [PiAuthController::class, 'redirectToPi'])->name('pi.redirect');
 Route::get('/pi/callback', [PiAuthController::class, 'handlePiCallback'])->name('pi.callback');
 
+// مسار لعرض صفحة مصادقة Pi
+Route::view('/pi-login', 'pi_auth');
+
 // مسارات إضافية
 Route::post('/logout', function () {
     auth()->logout();

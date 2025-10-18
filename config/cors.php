@@ -19,7 +19,10 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => [
+        '*',
+        'https://piapp-main-4xd19j.laravel.cloud'
+    ],
 
     'allowed_origins_patterns' => [],
 

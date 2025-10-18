@@ -16,10 +16,14 @@ class User extends Authenticatable
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
-     */
+    */
+    public $timestamps = true;
     protected $fillable = [
         'name',
+        'pi_username',
+        'public_key',
         'email',
+        'meta',
         'password',
         'pi_id',
         'pi_access_token',
@@ -45,6 +49,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'meta' => 'array',
         'password' => 'hashed',
         'pi_access_token' => 'encrypted',
         'pi_refresh_token' => 'encrypted',
